@@ -1,0 +1,221 @@
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gatsby
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitlab-agent
+  namespace: gitlab-agent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-agent
+  namespace: gitlab-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab-agent
+  template:
+    metadata:
+      labels:
+        app: gitlab-agent
+      namespace: gitlab-agent
+    spec:
+      serviceAccountName: gitlab-agent
+      containers:
+      - name: agent
+        image: "registry.gitlab.com/gitlab-org/cluster-integration/gitlab-kubernetes-agent/agentk:stable"
+        args:
+        - --token-file=/config/token
+        - --kas-address
+        - wss://kas.gitlab.com # for GitLab.com users, use this KAS.
+        volumeMounts:
+        - name: token-volume
+          mountPath: /config
+      volumes:
+      - name: token-volume
+        secret:
+          secretName: gitlab-agent-token
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitlab-agent-write-cm
+rules:
+- resources:
+  - 'configmaps'
+  apiGroups:
+  - ''
+  verbs:
+  - create
+  - update
+  - delete
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gitlab-agent-write-binding-cm
+roleRef:
+  name: gitlab-agent-write-cm
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- name: gitlab-agent
+  kind: ServiceAccount
+  namespace: gitlab-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitlab-agent-read-cm
+rules:
+- resources:
+  - 'configmaps'
+  apiGroups:
+  - ''
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gitlab-agent-read-binding-cm
+roleRef:
+  name: gitlab-agent-read-cm
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- name: gitlab-agent
+  kind: ServiceAccount
+  namespace: gitlab-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: gitlab-agent
+  name: gitlab-agent-write
+rules:
+- resources:
+  - '*'
+  apiGroups:
+  - '*'
+  verbs:
+  - create
+  - update
+  - delete
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: gitlab-agent
+  name: gitlab-agent-write-binding
+roleRef:
+  name: gitlab-agent-write
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- name: gitlab-agent
+  kind: ServiceAccount
+  namespace: gitlab-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: gitlab-agent
+  name: gitlab-agent-read
+rules:
+- resources:
+  - '*'
+  apiGroups:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: gitlab-agent
+  name: gitlab-agent-read-binding
+roleRef:
+  name: gitlab-agent-read
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- name: gitlab-agent
+  kind: ServiceAccount
+  namespace: gitlab-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: gatsby
+  name: gitlab-agent-write-gatsby
+rules:
+- resources:
+  - '*'
+  apiGroups:
+  - '*'
+  verbs:
+  - create
+  - update
+  - delete
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: gatsby
+  name: gitlab-agent-write-binding-gatsby
+roleRef:
+  name: gitlab-agent-write-gatsby
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- name: gitlab-agent
+  kind: ServiceAccount
+  namespace: gitlab-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: gatsby
+  name: gitlab-agent-read-gatsby
+rules:
+- resources:
+  - '*'
+  apiGroups:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: gatsby
+  name: gitlab-agent-read-binding-gatsby
+roleRef:
+  name: gitlab-agent-read-gatsby
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- name: gitlab-agent
+  kind: ServiceAccount
+  namespace: gitlab-agent
